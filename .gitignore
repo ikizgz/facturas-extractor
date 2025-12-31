@@ -1,0 +1,177 @@
+# Archivos de código compilado/optimizado/DLL. Ignorar estos evita que el código compilado, que es específico de cada entorno de desarrollo, se suba al repositorio.
+__pycache__/
+*.py[codz]
+*$py.class
+
+# Extensiones de C. Los archivos .so son bibliotecas compartidas (shared objects) compiladas en C o C++ para optimizar el rendimiento de Python. No son portátiles entre sistemas, por lo que no deben ser versionadas.
+*.so
+
+# Distribución / empaquetado. Estos directorios y archivos se crean al empaquetar un proyecto para su distribución y se generan a partir del código fuente.
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller. Archivos generados al usar PyInstaller, una herramienta para empaquetar aplicaciones de Python en un solo ejecutable.
+*.manifest
+*.spec
+
+# Registros del instalador. Archivos de registro generados por pip.
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Informes de pruebas unitarias / cobertura. Archivos y directorios que contienen los resultados de las pruebas de código, generados localmente.
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Traducciones. Los archivos .mo y .pot se utilizan en la gestión de traducciones (i18n). Son archivos generados que se pueden recrear a partir de los archivos fuente de traducción.
+*.mo
+*.pot
+
+# Cosas de Django. Sección específica para proyectos con el framework web Django, ignorando archivos como bases de datos locales y configuraciones de desarrollo que a menudo contienen información sensible.
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Cosas de Flask. Similar a Django, ignora la carpeta 'instance/' que contiene archivos de configuración y datos de la instancia local.
+instance/
+.webassets-cache
+
+# Cosas de Scrapy. Ignora la configuración local del framework de web scraping.
+.scrapy
+
+# Documentación de Sphinx. Ignora el directorio '_build/' que contiene la documentación generada por Sphinx.
+docs/_build/
+
+# PyBuilder. Ignora los directorios de construcción del proyecto.
+.pybuilder/
+target/
+
+# Jupyter Notebook. Ignora el directorio '.ipynb_checkpoints', donde Jupyter Notebooks guarda puntos de control.
+.ipynb_checkpoints
+
+# IPython. Ignora la configuración por defecto y el perfil de IPython.
+profile_default/
+ipython_config.py
+
+# pyenv. El archivo '.python-version' es creado por pyenv para especificar la versión de Python del proyecto. El comentario original sugiere que, si es una librería, podría ignorarse, pero si la intención es que el código funcione en un entorno específico, es mejor incluirlo.
+.python-version
+
+# pipenv. El comentario explica que la comunidad recomienda incluir 'Pipfile.lock' en el control de versiones, pero que puede haber problemas de compatibilidad en entornos de colaboración con dependencias multiplataforma.
+#Pipfile.lock
+
+# UV. El comentario original recomienda incluir 'uv.lock' en el control de versiones, especialmente para paquetes binarios, pero es más común ignorarlo para librerías.
+#uv.lock
+
+# poetry. Se recomienda incluir 'poetry.lock' en el control de versiones para la reproducibilidad del entorno.
+#poetry.lock
+#poetry.toml
+
+# pdm. Se recomienda incluir 'pdm.lock' en el control de versiones. PDM aconseja incluir la configuración global en 'pdm.toml' y excluir '.pdm-python'.
+#pdm.lock
+#pdm.toml
+.pdm-python
+.pdm-build/
+
+# pixi. Se recomienda incluir 'pixi.lock' en el control de versiones. El comentario indica que 'pixi' crea un entorno virtual en el directorio '.pixi', y se recomienda no incluir este directorio en el control de versiones.
+#pixi.lock
+.pixi
+
+# PEP 582. Se refiere a una propuesta de empaquetado de Python utilizada por herramientas como pyflow y pdm. Ignora el directorio '__pypackages__'.
+__pypackages__/
+
+# Cosas de Celery. Archivos generados por Celery, un sistema de gestión de colas de tareas.
+celerybeat-schedule
+celerybeat.pid
+
+# Archivos analizados de SageMath.
+*.sage.py
+
+# Entornos. Sección fundamental que ignora directorios donde se crean entornos virtuales de Python.
+.env
+.envrc
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+ent_virt/
+entorno_virtual/
+
+# Configuración del proyecto de Spyder. Ignora archivos de configuración generados por el IDE Spyder.
+.spyderproject
+.spyproject
+
+# Configuración del proyecto de Rope.
+.ropeproject
+
+# Documentación de mkdocs. Ignora el directorio '/site' que contiene la documentación generada.
+/site
+
+# mypy. Ignora la caché de mypy, un verificador de tipos estático.
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker. Ignora el directorio de la caché del verificador de tipos de Pyre.
+.pyre/
+
+# pytype static type analyzer. Ignora la caché del analizador de tipos de pytype.
+.pytype/
+
+# Símbolos de depuración de Cython.
+cython_debug/
+
+# PyCharm. El comentario original indica que la configuración de PyCharm ('/.idea') puede ser ignorada, aunque se recomienda usar el archivo '.gitignore' específico de JetBrains en su lugar.
+#.idea/
+
+# Abstra. Abstra es un framework de automatización de procesos. El comentario recomienda ignorar los directorios que contienen credenciales de usuario, estado local y configuraciones.
+.abstra/
+
+# Visual Studio Code. La plantilla específica de Visual Studio Code se guarda en un archivo VisualStudioCode.gitignore independiente, 
+# disponible en https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore.
+# Y puede añadirse al archivo global gitignore o fusionarse en este archivo.
+# Sin embargo, si lo prefieres, puedes descomentar lo siguiente para ignorar toda la carpeta de vscode.
+.vscode/
+
+# Cosas de Ruff. Ignora la caché de Ruff, un linter y formateador de código.
+.ruff_cache/
+
+# Archivo de configuración de PyPI.
+.pypirc
+
+# Cursor. El comentario explica que los archivos '.cursorignore' y '.cursorindexingignore' se utilizan para excluir archivos y directorios de las funciones de IA del editor de código Cursor. Se recomienda para datos sensibles.
+.cursorignore
+.cursorindexingignore
+
+# Marimo. Ignora directorios de archivos temporales de Marimo, un framework para crear aplicaciones web interactivas.
+marimo/_static/
+marimo/_lsp/
+__marimo__/

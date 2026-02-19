@@ -2,7 +2,8 @@
 
 Scripts para extraer datos de facturas y crear un Excel con ellos
 
-Parámetros de main.py:
+## Parámetros de main.py
+
 "--input", "-i", type=str, required=True, help="Carpeta con los PDFs")
 "--output", "-o", type=str, default=None, help="Excel de salida (por defecto: facturas_datos_extraidos.xlsx)"
 "--ocr", choices=["on", "off"], default="on", help="OCR si el PDF no tiene texto"
@@ -14,4 +15,3 @@ Parámetros de main.py:
 "--throttle-every", type=int, default=DEFAULT_THROTTLE_EVERY, help=f"Cada N PDFs aplicar pausa (por defecto {DEFAULT_THROTTLE_EVERY})"
 "--throttle-ms", type=int, default=DEFAULT_THROTTLE_MS, help=f"Pausa (ms) cuando se cumple throttle-every (por defecto {DEFAULT_THROTTLE_MS})"
 "--child-timeout-s", type=int, default=DEFAULT_CHILD_TIMEOUT_S, help=f"Timeout por PDF (por defecto {DEFAULT_CHILD_TIMEOUT_S})"
-

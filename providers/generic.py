@@ -78,7 +78,8 @@ class GenericParser(ProviderParser):
                         # Filtro de seguridad: si el número es sospechosamente pequeño
                         # y estamos buscando un total, lo ignoramos
                         val = norm_num(m.group(1))
-                        if role == "total" and val < 1.0:
+                        # Ignoramos si es None o si es un total demasiado pequeño
+                        if val is None or (role == "total" and val < 1.0):
                             continue
                         return val
         return None

@@ -6,7 +6,7 @@ PyPDF2
 # OCR (opcional si usas --ocr on)
 pytesseract
 pdf2image
-Pillow
+pillow
 
 # Utilidades
 python-dateutil

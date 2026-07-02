@@ -4,7 +4,13 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
+
+# --- NUEVO: Lista de CIFs/NIFs propios para no confundirlos con los del proveedor ---
+MY_CIFS: Set[str] = {
+    "J99198285",  # ACR S.C.
+    # Añade aquí otros NIFs/CIFs de tus empresas si tienes más
+}
 
 ADDRESS_TOKENS = [
     r"\bCALLE\b",
@@ -18,13 +24,17 @@ ADDRESS_TOKENS = [
     r"\bCP\b",
     r"\bZARAGOZA\b",
     r"\bESPAÑA\b",
+    r"\bUTEBO\b",  # Nuevo
+    r"\bGARRAPINILLOS\b",  # Nuevo
 ]
+
 BLOCKLIST_TOKENS = {
     "PROPIETARIO",
     "FRA.CONTADO",
     "CONTADO",
     "CARRETERA",
     "ZARAGOZA",
+    "UTEBO",  # Nuevo
     "GARRAPINILLOS",
     "REFERENCIA",
     "FRACONTADO",
@@ -38,21 +48,37 @@ BLOCKLIST_TOKENS = {
     "ADQUIRIENTE",
     "TITULAR",
 }
+
+# --- MEJORADO: Añadidos meses abreviados (3 letras) ---
 MONTHS_ES = {
     "ENERO": 1,
+    "ENE": 1,
     "FEBRERO": 2,
+    "FEB": 2,
     "MARZO": 3,
+    "MAR": 3,
     "ABRIL": 4,
+    "ABR": 4,
     "MAYO": 5,
+    "MAY": 5,
     "JUNIO": 6,
+    "JUN": 6,
     "JULIO": 7,
+    "JUL": 7,
     "AGOSTO": 8,
+    "AGO": 8,
     "SEPTIEMBRE": 9,
     "SETIEMBRE": 9,
+    "SEP": 9,
+    "SET": 9,
     "OCTUBRE": 10,
+    "OCT": 10,
     "NOVIEMBRE": 11,
+    "NOV": 11,
     "DICIEMBRE": 12,
+    "DIC": 12,
 }
+
 NUM_MONEY_RE = re.compile(r"([€]?\d[\d.,]*)\s*(?!%)")
 NUM_PCT_RE = re.compile(r"(\d{1,2}(?:[.,]\d{1,2})?)\s*%")
 VAT_ROW_RE = re.compile(
@@ -85,6 +111,11 @@ def plausible_vat(cid: Optional[str]) -> bool:
     if not cid:
         return False
     cid_n = norm_cif(cid)
+
+    # --- MEJORADO: Ignorar los CIFs propios ---
+    if cid_n in MY_CIFS:
+        return False
+
     return bool(VAT_ES_RE.match(cid_n) or VAT_EU_RE.match(cid_n))
 
 
@@ -94,7 +125,7 @@ def norm_num(s: Optional[str]) -> Optional[float]:
     st = str(s).strip()
     if not st:
         return None
-    for sym in ("€", "EUR", " ", " "):
+    for sym in ("€", "EUR", " ", " "):
         st = st.replace(sym, "")
     st = st.replace("%", "")
     if "," in st and "." in st:
@@ -112,7 +143,7 @@ def to_decimal_pct(s: Optional[Union[str, float]]) -> Optional[float]:
         return None
     if isinstance(s, float):
         return round(s / 100.0, 6) if s > 1.0 else round(s, 6)
-    st = str(s).strip().replace(" ", "").replace(" ", "")
+    st = str(s).strip().replace(" ", "").replace(" ", "")
     if st.endswith("%"):
         st = st[:-1]
     st = st.replace(",", ".")
@@ -136,7 +167,10 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
                 return datetime.strptime(m.group(1), "%d/%m/%Y").date().isoformat()
         except Exception:
             pass
+
     candidates: List[datetime] = []
+
+    # 1. Buscar formatos estándar dd/mm/yyyy o dd-mm-yyyy
     for pat, fmt in [
         (r"(\d{1,2}/\d{1,2}/\d{4})", "%d/%m/%Y"),
         (r"(\d{1,2}-\d{1,2}-\d{4})", "%d-%m-%Y"),
@@ -150,11 +184,30 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
                     candidates.append(datetime.strptime(m2.group(1), fmt))
             except Exception:
                 continue
+
+    # --- NUEVO: Buscar formatos con mes abreviado (Ej: 24-ABR-26) ---
+    for m_abrev in re.finditer(r"(\d{1,2})[-/]([A-Za-z]{3,})[-/](\d{2,4})", txt):
+        dd = int(m_abrev.group(1))
+        mes_str = strip_accents_punct(m_abrev.group(2)).upper()
+        yy = int(m_abrev.group(3))
+
+        mi = MONTHS_ES.get(mes_str)
+        if mi:
+            # Si el año es de 2 dígitos (ej: 26 -> 2026)
+            yi = yy if yy >= 2000 else 2000 + yy
+            if yi >= 2018:
+                try:
+                    candidates.append(datetime(yi, mi, dd))
+                except Exception:
+                    pass
+
     if candidates:
         best = sorted(candidates, key=lambda d: (d.year, d.month, d.day), reverse=True)[
             0
         ]
         return best.date().isoformat()
+
+    # 3. Buscar formato "dd de mes de yyyy"
     m3 = re.search(
         r"(\d{1,2})\s+de\s+([A-Za-zÁÉÍÓÚáéíóú]+)\s+de\s+(\d{4})", txt, re.IGNORECASE
     )
@@ -167,4 +220,5 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
                 return datetime(year, mon, day).date().isoformat()
             except Exception:
                 pass
+
     return None

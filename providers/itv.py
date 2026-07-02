@@ -1,93 +1,78 @@
+# -*- coding: utf-8 -*-
 # providers/itv.py
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import List
 
 from .base import ProviderParser
-from .common import Row, norm_cif, norm_num, parse_date_text
+from .common import Row, norm_num, parse_date_text
 
 
 class ItvParser(ProviderParser):
     name = "ARAGONESA DE SERVICIOS ITV"
 
     def detect(self, text: str) -> bool:
-        up = text.upper()
-        return ("ARAGONESA DE SERVICIOS ITV" in up) or ("SERVICIOS ITV, S.A." in up)
-
-    def _find(self, up: str, pat: str) -> Optional[float]:
-        m = re.search(pat, up)
-        return norm_num(m.group(1)) if m else None
+        return "ARAGONESA DE SERVICIOS ITV" in text.upper()
 
     def parse(self, text: str, path) -> List[Row]:
-        up = text.upper()
-        # Nº factura: "FACTURA N* 000001743/50072024F" (OCR variantes: "N*2")
-        mnum = re.search(r"FACTURA\s+N\*?\d*\s*([0-9]{6,}/[0-9A-Z]+)", up)
-        number = mnum.group(1) if mnum else None
+        # 1. Limpieza selectiva
+        clean_text = re.sub(r"[^a-zA-Z0-9/.,\s]", " ", text)
+        raw_text = " ".join(clean_text.split())
 
-        # Fecha: dd/mm/yyyy
+        # 2. Número de factura (quirúrgico)
+        mnum = re.search(r"(\d{9}/[A-Z0-9]{8}F)", raw_text)
+        number = mnum.group(1) if mnum else path.stem
         fecha = parse_date_text(text)
 
-        # Base / tasa / total (IVA derivado)
-        base = self._find(up, r"BASE\s+IMPONIBLE\s*[:\s]*([0-9][0-9.,]*)")
-        tasa = None
-        for pat in [
-            r"TASA\s+TR[ÁA]FICO\s*[:\s]*([0-9][0-9.,]*)",
-            r"TASA\s+T[RÁA]FICO\s*[:\s]*([0-9][0-9.,]*)",
-        ]:
-            tasa = self._find(up, pat)
-            if tasa is not None:
-                break
-        total = self._find(up, r"TOTAL\s+FACTURA\s*[:\s]*([0-9][0-9.,]*)")
+        # 3. Extracción de valores
+        def get_val(keyword):
+            # El .*? permite saltar el "1" intruso o cualquier basura
+            pattern = rf"{keyword}.*?([0-9]+[,.][0-9]{{2}})"
+            m = re.search(pattern, raw_text, re.IGNORECASE)
+            return norm_num(m.group(1)) if m else None
 
-        # IVA = total - base - tasa
-        iva = None
-        if base is not None and total is not None:
-            iva = round(total - (base or 0.0) - (tasa or 0.0), 2)
-            if iva < 0:
-                iva = None
-
-        # % IVA sobre la línea de base
-        pct = None
-        if base and iva and base > 0:
-            pct = round(iva / base, 6)
-
-        # Notas comunes (dos IVAs): "VARIOS IVAS + TOTAL <importe>"
-        notas = (
-            f"VARIOS IVAS + TOTAL {total:.2f}" if total is not None else "VARIOS IVAS"
-        )
+        base_imp = get_val("BASE IMPONIBLE")
+        # Captura de la tasa ignorando cualquier carácter intermedio
+        tasa = get_val(r"TASA.*?\s+([0-9]+[,.][0-9]{2})")
+        iva_cuota = get_val(r"IVA[^\d]*21")
+        # Captura del total ignorando cualquier carácter intermedio
+        total_factura = get_val(r"TOTAL FACTURA.*?\s+([0-9]+[,.][0-9]{2})")
 
         rows: List[Row] = []
-        # Línea 1: servicio (base + IVA)
-        rows.append(
-            {
-                "fecha_factura": fecha,
-                "numero_factura": number or path.stem,
-                "empresa": "ARAGONESA DE SERVICIOS ITV, S.A.",
-                "CIF": norm_cif("A18096511"),
-                "importe_base": base,
-                "%IVA": pct,
-                "IVA": iva,
-                "importe_total": (
-                    round((base or 0.0) + (iva or 0.0), 2)
-                    if (base is not None and iva is not None)
-                    else None
-                ),
-                "Notas": notas,
-            }
-        )
-        # Línea 2: tasa tráfico (IVA 0%)
-        rows.append(
-            {
-                "fecha_factura": fecha,
-                "numero_factura": number or path.stem,
-                "empresa": "ARAGONESA DE SERVICIOS ITV, S.A.",
-                "CIF": norm_cif("A18096511"),
-                "importe_base": tasa,
-                "%IVA": 0.0 if tasa is not None else None,
-                "IVA": 0.0 if tasa is not None else None,
-                "importe_total": tasa,
-                "Notas": notas,
-            }
-        )
+
+        # 4. Fila 1: Servicio ITV
+        if base_imp:
+            iva_val = iva_cuota or round(base_imp * 0.21, 2)
+            rows.append(
+                {
+                    "fecha_factura": fecha,
+                    "numero_factura": number,
+                    "empresa": "ARAGONESA DE SERVICIOS ITV, S.A.",
+                    "CIF": "A18096511",
+                    "importe_base": base_imp,
+                    "%IVA": 0.21,
+                    "IVA": iva_val,
+                    "importe_total": round(base_imp + iva_val, 2),
+                    "Notas": f"Servicio ITV | Importe total fra: {total_factura}",
+                }
+            )
+
+        # 5. Fila 2: Tasa (Solo si detecta valor > 0)
+        if tasa and tasa > 0:
+            rows.append(
+                {
+                    "fecha_factura": fecha,
+                    "numero_factura": number,
+                    "empresa": "ARAGONESA DE SERVICIOS ITV, S.A.",
+                    "CIF": "A18096511",
+                    "importe_base": tasa,
+                    "%IVA": 0.0,
+                    "IVA": 0.0,
+                    "importe_total": tasa,
+                    "Notas": f"Tasa Tráfico | Importe total fra: {total_factura}",
+                }
+            )
+
         return rows

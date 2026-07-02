@@ -15,7 +15,7 @@ from PyPDF2 import PdfReader
 from providers import PROVIDERS
 from providers.common import Row
 
-DEFAULT_DPI = 150
+DEFAULT_DPI = 200
 DEFAULT_SLEEP_MS = 0
 DEFAULT_THROTTLE_EVERY = 6
 DEFAULT_THROTTLE_MS = 800
@@ -26,7 +26,12 @@ DEFAULT_CHILD_TIMEOUT_S = 60
 def read_pdf_text_native(path: Path) -> str:
     try:
         reader = PdfReader(str(path))
-        return "\n".join([(p.extract_text() or "") for p in reader.pages]) or ""
+        # Añadimos un separador claro entre páginas
+        pages_text = []
+        for i, p in enumerate(reader.pages):
+            text = p.extract_text() or ""
+            pages_text.append(f"\n--- PAGE {i + 1} ---\n{text}")
+        return "\n".join(pages_text)
     except Exception:
         return ""
 

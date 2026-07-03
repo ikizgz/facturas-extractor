@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # providers/itv.py
-# -*- coding: utf-8 -*-
+
 from __future__ import annotations
 
 import re

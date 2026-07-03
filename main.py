@@ -15,7 +15,7 @@ from PyPDF2 import PdfReader
 from providers import PROVIDERS
 from providers.common import Row
 
-DEFAULT_DPI = 200
+DEFAULT_DPI = 300
 DEFAULT_SLEEP_MS = 0
 DEFAULT_THROTTLE_EVERY = 6
 DEFAULT_THROTTLE_MS = 800

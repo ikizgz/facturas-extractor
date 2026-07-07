@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # providers/salvadorescoda.py
+
 from __future__ import annotations
 
 import re
@@ -13,36 +14,47 @@ class SalvadorEscodaParser(ProviderParser):
     name = "SALVADOR ESCODA S.A."
 
     def detect(self, text: str) -> bool:
-        # Detección ultra-segura
-        return "SALVADOR ESCODA" in text.upper() or "A-08710006" in text.upper()
+        t = text.upper()
+        return any(
+            x in t for x in ["SALVADOR ESCODA", "ESCODA", "A08710006", "A-08710006"]
+        )
 
     def parse(self, text: str, path) -> List[Row]:
-        # Normalización conservando los espacios clave
         raw_text = " ".join(text.split())
 
-        # 1. Número de factura: Busca "FACTURA" y coge el número de 7 dígitos siguiente
-        mnum = re.search(r"FACTURA\s+(\d{7})", raw_text)
+        # 1. Extracción de datos básicos
+        mnum = re.search(r"FACTURA\s*(\d{7})", raw_text)
         number = mnum.group(1) if mnum else path.stem
-
         fecha = parse_date_text(text)
 
-        # 2. Extracción de Totales (El truco está aquí)
-        # Buscamos la secuencia completa en el raw_text que incluye los importes.
-        # Captura: BASE IMPONIBLE, luego el IVA, luego el TOTAL.
-        # Usamos un regex que se salta toda la basura entre medio.
-        totals_pattern = r"BASE IMPONIBLE.*?([0-9.,]+)\s+21,00\s+% IVA.*?([0-9.,]+)\s+EUR\s+([0-9.,]+)"
+        # 2. Captura del % IVA
+        iva_pct_match = re.search(
+            r"([0-9]+[,.][0-9]{1,2})\s*%\s*IVA", raw_text, re.IGNORECASE
+        )
+        # 1. Extraemos el valor usando norm_num
+        valor_extraido = norm_num(iva_pct_match.group(1)) if iva_pct_match else None
+        # 2. Asignamos con una guarda (si es None, usamos 0.21)
+        iva_pct = (valor_extraido / 100) if valor_extraido is not None else 0.21
 
-        m_totals = re.search(totals_pattern, raw_text, re.IGNORECASE)
+        # 3. Captura de importes (Base, IVA, Total)
+        totals_match = re.search(
+            r"BASE\s+IMPONIBLE.*?([0-9.,]+)\s+([0-9.,]+)\s+EUR\s+([0-9.,]+)",
+            raw_text,
+            re.IGNORECASE,
+        )
 
-        if m_totals:
-            base_imp = norm_num(m_totals.group(1))
-            iva_total = norm_num(m_totals.group(2))
-            total_factura = norm_num(m_totals.group(3))
+        if totals_match:
+            base_imp = norm_num(totals_match.group(1))
+            iva_val = norm_num(totals_match.group(2))
+            total_factura = norm_num(totals_match.group(3))
         else:
-            # Fallback si el formato es distinto
-            base_imp = None
-            iva_total = None
-            total_factura = None
+            base_imp, iva_val, total_factura = None, None, None
+
+        # 4. Lógica de notas (solo si hay algo especial)
+        nota = ""
+        # Si el OCR nos ha dado una lectura pobre o sospechosa, lo marcamos
+        if len(text) < 500:
+            nota = "OCR: Texto corto o baja calidad"
 
         rows: List[Row] = []
         rows.append(
@@ -51,11 +63,12 @@ class SalvadorEscodaParser(ProviderParser):
                 "numero_factura": number,
                 "empresa": "SALVADOR ESCODA S.A.",
                 "CIF": "A08710006",
-                "importe_base": base_imp,
-                "%IVA": 0.21,
-                "IVA": iva_total,
-                "importe_total": total_factura,
-                "Notas": "Compra material Salvador Escoda",
+                # Aseguramos que son float para que Excel los trate como moneda
+                "importe_base": float(base_imp) if base_imp else 0.0,
+                "%IVA": float(iva_pct),
+                "IVA": float(iva_val) if iva_val else 0.0,
+                "importe_total": float(total_factura) if total_factura else 0.0,
+                "Notas": nota,
             }
         )
 

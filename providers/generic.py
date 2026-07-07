@@ -21,6 +21,7 @@ class GenericParser(ProviderParser):
         return True
 
     def parse(self, text: str, path) -> List[Row]:
+        # print(f"DEBUG: raw_text={text}")
         # 1. Dividir por páginas
         pages = re.split(r"--- PAGE \d+ ---", text)
         pages = [p.strip() for p in pages if p.strip()]

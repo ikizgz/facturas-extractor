@@ -180,7 +180,7 @@ def format_excel(path_out: Path) -> None:
         key = str(cell.value).strip() if cell.value is not None else f"COL_{idx}"
         headers[key] = idx
     fmt_fecha = "dd/mm/yyyy"
-    fmt_moneda = '"€"#,##0.00'
+    fmt_moneda = "#.##0,00 €;[Rojo]-#.##0,00 €"
     fmt_pct = "0.00%"
     max_row = ws.max_row if hasattr(ws, "max_row") else 0
     if not isinstance(max_row, int) or max_row < 2:

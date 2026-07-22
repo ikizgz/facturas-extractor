@@ -12,6 +12,7 @@ from typing import Dict, List
 import pandas as pd
 from PyPDF2 import PdfReader
 
+from logging_utils import setup_logging
 from providers import PROVIDERS
 from providers.common import Row
 
@@ -275,15 +276,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=getattr(logging, args.log), format="%(levelname)s: %(message)s"
-    )
-
+    # 1. Primero resolvemos el directorio de entrada
     input_dir = Path(args.input).expanduser().resolve()
     if not input_dir.exists() or not input_dir.is_dir():
         raise SystemExit(
             f"La carpeta de entrada no existe o no es una carpeta: {input_dir}"
         )
+
+    # 2. Reemplazamos logging.basicConfig por tu módulo personalizado
+    # Le pasamos el string del argumento log convertido a la constante de logging
+    setup_logging(
+        app_name="pdf_extractor", target_dir=input_dir, level=getattr(logging, args.log)
+    )
+
+    # 3. Resolvemos el archivo de salida
     output_xlsx = (
         Path(args.output).expanduser().resolve()
         if args.output
@@ -293,6 +299,8 @@ def main() -> None:
     pdfs = sorted([p for p in input_dir.glob("**/*.pdf")])
     if not pdfs:
         raise SystemExit(f"No se han encontrado PDFs en: {input_dir}")
+
+    # El resto del script sigue utilizando logging.info, logging.error, etc.
     logging.info(f"Procesando {len(pdfs)} PDFs desde {input_dir}")
 
     rows: List[Row] = []

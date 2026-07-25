@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 from __future__ import annotations
 
 import re
-from typing import List, Optional
 
 from .base import ProviderParser
 from .common import Row, norm_num, parse_date_text
@@ -20,7 +20,7 @@ class GenericParser(ProviderParser):
     def detect(self, text: str) -> bool:
         return True
 
-    def parse(self, text: str, path) -> List[Row]:
+    def parse(self, text: str, path) -> list[Row]:
         # print(f"DEBUG: raw_text={text}")
         # 1. Dividir por páginas
         pages = re.split(r"--- PAGE \d+ ---", text)
@@ -61,8 +61,8 @@ class GenericParser(ProviderParser):
         ]
 
     def _find_value_by_label(
-        self, text: str, patterns: List[str], role: str
-    ) -> Optional[float]:
+        self, text: str, patterns: list[str], role: str
+    ) -> float | None:
         # 1. Buscamos la línea que contenga la etiqueta
         for pat in patterns:
             lab_re = re.compile(pat, re.IGNORECASE)

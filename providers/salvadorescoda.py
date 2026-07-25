@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 # providers/salvadorescoda.py
 
 from __future__ import annotations
 
 import re
-from typing import List
 
 from .base import ProviderParser
 from .common import Row, norm_num, parse_date_text
@@ -19,7 +18,7 @@ class SalvadorEscodaParser(ProviderParser):
             x in t for x in ["SALVADOR ESCODA", "ESCODA", "A08710006", "A-08710006"]
         )
 
-    def parse(self, text: str, path) -> List[Row]:
+    def parse(self, text: str, path) -> list[Row]:
         raw_text = " ".join(text.split())
 
         # 1. Número de factura y fecha
@@ -99,7 +98,7 @@ class SalvadorEscodaParser(ProviderParser):
         if len(text) < 400 or not base_imp or not total_factura or not iva_val:
             nota = "OCR: Revisar importes impresos"
 
-        rows: List[Row] = []
+        rows: list[Row] = []
         rows.append(
             {
                 "fecha_factura": fecha,

@@ -1,4 +1,5 @@
-# -*- coding: utf-8
+#!/usr/bin/env python3
+# __init__.py
 
 from .generic import GenericParser
 from .itv import ItvParser

@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 # providers/itv.py
 
 from __future__ import annotations
 
 import re
-from typing import List
 
 from .base import ProviderParser
 from .common import Row, norm_num, parse_date_text
@@ -16,7 +15,7 @@ class ItvParser(ProviderParser):
     def detect(self, text: str) -> bool:
         return "ARAGONESA DE SERVICIOS ITV" in text.upper()
 
-    def parse(self, text: str, path) -> List[Row]:
+    def parse(self, text: str, path) -> list[Row]:
         # 1. Limpieza selectiva
         clean_text = re.sub(r"[^a-zA-Z0-9/.,\s]", " ", text)
         raw_text = " ".join(clean_text.split())
@@ -40,7 +39,7 @@ class ItvParser(ProviderParser):
         # Captura del total ignorando cualquier carácter intermedio
         total_factura = get_val(r"TOTAL FACTURA.*?\s+([0-9]+[,.][0-9]{2})")
 
-        rows: List[Row] = []
+        rows: list[Row] = []
 
         # 4. Fila 1: Servicio ITV
         if base_imp:

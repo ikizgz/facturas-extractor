@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from __future__ import annotations
 
 import argparse
@@ -7,7 +5,6 @@ import gc
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
 
 import pandas as pd
 from PyPDF2 import PdfReader
@@ -22,18 +19,20 @@ DEFAULT_THROTTLE_EVERY = 6
 DEFAULT_THROTTLE_MS = 800
 DEFAULT_CHILD_TIMEOUT_S = 60
 
+logger = logging.getLogger(__name__)
+
 
 # ---- OCR ----
 def read_pdf_text_native(path: Path) -> str:
     try:
         reader = PdfReader(str(path))
-        # Añadimos un separador claro entre páginas
         pages_text = []
         for i, p in enumerate(reader.pages):
             text = p.extract_text() or ""
             pages_text.append(f"\n--- PAGE {i + 1} ---\n{text}")
         return "\n".join(pages_text)
-    except Exception:
+    except (FileNotFoundError, OSError, ValueError) as e:
+        logger.debug("Error leyendo texto nativo del PDF %s: %s", path.name, e)
         return ""
 
 
@@ -48,7 +47,7 @@ def read_pdf_text_ocr(
             pytesseract.pytesseract.tesseract_cmd = tesseract_exe
         info = pdfinfo_from_path(str(path), userpw="", poppler_path=poppler_path)
         max_pages = int(info.get("Pages", 1))
-        collected: List[str] = []
+        collected: list[str] = []
         for page in range(1, max_pages + 1):
             images = convert_from_path(
                 str(path),
@@ -66,8 +65,8 @@ def read_pdf_text_ocr(
             )
             try:
                 img.close()
-            except Exception:
-                pass
+            except (OSError, AttributeError) as exc:
+                logger.debug("No se pudo cerrar la imagen OCR: %s", exc)
             del images
             gc.collect()
             if sleep_ms > 0:
@@ -75,7 +74,8 @@ def read_pdf_text_ocr(
 
                 time.sleep(sleep_ms / 1000.0)
         return "\n".join(collected)
-    except Exception:
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.debug("Error en el proceso OCR para el archivo %s: %s", path.name, e)
         return ""
 
 
@@ -96,7 +96,7 @@ def child_worker(
                 tesseract_exe=tesseract_exe,
             )
             ocr_used = True
-        rows: List[Row] = []
+        rows: list[Row] = []
         # Detección por proveedor (primero que detecte)
         for parser in PROVIDERS:
             if parser.detect(text):
@@ -114,8 +114,9 @@ def child_worker(
         if not rows:
             rows = [{"numero_factura": path.stem, "Notas": "Sin parser"}]
         q.put(json.dumps(rows))
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         p = Path(pdf_path)
+        logger.error("Error crítico en child_worker para %s: %s", p.name, e)
         q.put(json.dumps([{"numero_factura": p.name, "Notas": f"Error: {e}"}]))
 
 
@@ -126,7 +127,7 @@ def run_child_extract(
     poppler_path: str,
     tesseract_exe: str,
     timeout_s: int,
-) -> List[Row]:
+) -> list[Row]:
     import multiprocessing as mp
     from multiprocessing import Process, Queue
 
@@ -142,13 +143,16 @@ def run_child_extract(
         try:
             p.terminate()
             p.join(5)
-        except Exception:
-            pass
+        except (OSError, RuntimeError) as e:
+            logger.debug("No se pudo terminar el proceso hijo limpiamente: %s", e)
         return [{"numero_factura": pdf_path.name, "Notas": f"Timeout {timeout_s}s"}]
     try:
         data = q.get_nowait()
         return json.loads(data)
-    except Exception:
+    except (OSError, ValueError) as e:
+        logger.debug(
+            "No se pudieron recuperar datos de la cola para %s: %s", pdf_path.name, e
+        )
         return [{"numero_factura": pdf_path.name, "Notas": "Sin datos del hijo"}]
 
 
@@ -157,11 +161,13 @@ def format_excel(path_out: Path) -> None:
     try:
         from openpyxl import load_workbook
         from openpyxl.worksheet.worksheet import Worksheet
-    except Exception:
+    except ImportError as e:
+        logger.debug("openpyxl no disponible: %s", e)
         return
     try:
         wb = load_workbook(str(path_out))
-    except Exception:
+    except (OSError, ValueError) as e:
+        logger.debug("No se pudo cargar el archivo Excel para formateo: %s", e)
         return
     if not wb.sheetnames:
         return
@@ -173,10 +179,11 @@ def format_excel(path_out: Path) -> None:
     # Header row
     try:
         header_row = list(ws[1])
-    except Exception:
+    except (KeyError, IndexError, AttributeError) as e:
+        logger.debug("No se pudieron leer las cabeceras de la hoja de cálculo: %s", e)
         wb.save(str(path_out))
         return
-    headers: Dict[str, int] = {}
+    headers: dict[str, int] = {}
     for idx, cell in enumerate(header_row, start=1):
         key = str(cell.value).strip() if cell.value is not None else f"COL_{idx}"
         headers[key] = idx
@@ -204,8 +211,8 @@ def format_excel(path_out: Path) -> None:
             ws.cell(row=r, column=col_pct).number_format = fmt_pct
     try:
         wb.save(str(path_out))
-    except Exception:
-        pass
+    except OSError as e:
+        logger.warning("Error al guardar el archivo Excel formateado: %s", e)
 
 
 # ---- MAIN ----
@@ -284,7 +291,6 @@ def main() -> None:
         )
 
     # 2. Reemplazamos logging.basicConfig por tu módulo personalizado
-    # Le pasamos el string del argumento log convertido a la constante de logging
     setup_logging(
         app_name="pdf_extractor", target_dir=input_dir, level=getattr(logging, args.log)
     )
@@ -300,13 +306,10 @@ def main() -> None:
     if not pdfs:
         raise SystemExit(f"No se han encontrado PDFs en: {input_dir}")
 
-    # El resto del script sigue utilizando logging.info, logging.error, etc.
-    logging.info(f"Procesando {len(pdfs)} PDFs desde {input_dir}")
+    logger.info("Procesando %s PDFs desde %s", len(pdfs), input_dir)
 
-    rows: List[Row] = []
-    count = 0
-    for p in pdfs:
-        count += 1
+    rows: list[Row] = []
+    for count, p in enumerate(pdfs, start=1):
         try:
             recs = run_child_extract(
                 p,
@@ -317,8 +320,8 @@ def main() -> None:
                 timeout_s=max(30, int(args.child_timeout_s)),
             )
             rows.extend(recs)
-        except Exception as e:
-            logging.error(f"Error en {p.name}: {e}")
+        except (RuntimeError, ValueError, OSError) as e:
+            logger.error("Error procesando el archivo %s: %s", p.name, e)
         if (
             args.throttle_every
             and args.throttle_ms
@@ -349,12 +352,12 @@ def main() -> None:
             columns=["fecha_sort"]
         )
         df["fecha_factura"] = pd.to_datetime(df["fecha_factura"], errors="coerce")
-    except Exception:
-        pass
+    except (KeyError, ValueError, TypeError) as e:
+        logger.debug("No se pudo ordenar el DataFrame por fecha: %s", e)
 
     df.to_excel(output_xlsx, index=False, engine="openpyxl")
     format_excel(output_xlsx)
-    logging.info(f"Excel generado: {output_xlsx}")
+    logger.info("Excel generado: %s", output_xlsx)
 
 
 if __name__ == "__main__":
@@ -362,6 +365,6 @@ if __name__ == "__main__":
         import multiprocessing as mp
 
         mp.freeze_support()
-    except Exception:
-        pass
+    except (ImportError, RuntimeError) as e:
+        logger.debug("No se pudo aplicar freeze_support: %s", e)
     main()

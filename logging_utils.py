@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# logging_utils.py
 
 """
 Módulo de Utilidades de Logging
@@ -74,7 +74,7 @@ def setup_logging(
     os.makedirs(log_dir, exist_ok=True)
 
     # Archivo nuevo para cada ejecución
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # noqa: DTZ005
     log_path = log_dir / f"{app_name}_{timestamp}.log"
 
     # Root logger
@@ -100,4 +100,4 @@ def setup_logging(
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    logging.info(f"*** Logging configurado. Archivo: {log_path} ***")
+    logger.info(f"*** Logging configurado. Archivo: {log_path} ***")

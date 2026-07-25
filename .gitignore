@@ -155,6 +155,9 @@ cython_debug/
 # Abstra. Abstra es un framework de automatización de procesos. El comentario recomienda ignorar los directorios que contienen credenciales de usuario, estado local y configuraciones.
 .abstra/
 
+# Github. Ignora archivos de configuración de GitHub.
+.github/
+
 # Visual Studio Code. La plantilla específica de Visual Studio Code se guarda en un archivo VisualStudioCode.gitignore independiente, 
 # disponible en https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore.
 # Y puede añadirse al archivo global gitignore o fusionarse en este archivo.

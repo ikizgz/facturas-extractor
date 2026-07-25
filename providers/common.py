@@ -1,13 +1,17 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# common.py
+
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Union
+
+logger = logging.getLogger(__name__)
 
 # --- NUEVO: Lista de CIFs/NIFs propios para no confundirlos con los del proveedor ---
-MY_CIFS: Set[str] = {
+MY_CIFS: set[str] = {
     "J99198285",  # ACR S.C.
     # Añade aquí otros NIFs/CIFs de tus empresas si tienes más
 }
@@ -88,10 +92,10 @@ VAT_ES_RE = re.compile(
     r"^(ES)?([A-HJNPQRSUVW]\d{7}[0-9A-J]|\d{8}[A-Z]|[XYZ]\d{7}[A-Z])$"
 )
 VAT_EU_RE = re.compile(r"^[A-Z]{2}[A-Z0-9\-.]{8,14}$")
-Row = Dict[str, Optional[Union[str, float]]]
+Row = dict[str, str | float | None]
 
 
-def strip_accents_punct(s: Optional[str]) -> str:
+def strip_accents_punct(s: str | None) -> str:
     s = s or ""
     s = "".join(
         c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
@@ -101,13 +105,13 @@ def strip_accents_punct(s: Optional[str]) -> str:
     return s
 
 
-def norm_cif(s: Optional[str]) -> str:
+def norm_cif(s: str | None) -> str:
     if not s:
         return ""
     return re.sub(r"[^A-Za-z0-9]", "", str(s)).upper()
 
 
-def plausible_vat(cid: Optional[str]) -> bool:
+def plausible_vat(cid: str | None) -> bool:
     if not cid:
         return False
     cid_n = norm_cif(cid)
@@ -119,7 +123,7 @@ def plausible_vat(cid: Optional[str]) -> bool:
     return bool(VAT_ES_RE.match(cid_n) or VAT_EU_RE.match(cid_n))
 
 
-def norm_num(s: Optional[str]) -> Optional[float]:
+def norm_num(s: str | None) -> float | None:
     if s is None:
         return None
     st = str(s).strip()
@@ -134,27 +138,26 @@ def norm_num(s: Optional[str]) -> Optional[float]:
         st = st.replace(",", ".")
     try:
         return float(st)
-    except Exception:
+    except (ValueError, TypeError):
         return None
 
 
-def to_decimal_pct(s: Optional[Union[str, float]]) -> Optional[float]:
+def to_decimal_pct(s: str | float | None) -> float | None:
     if s is None:
         return None
     if isinstance(s, float):
         return round(s / 100.0, 6) if s > 1.0 else round(s, 6)
     st = str(s).strip().replace(" ", "").replace(" ", "")
-    if st.endswith("%"):
-        st = st[:-1]
+    st = st.removesuffix("%")
     st = st.replace(",", ".")
     try:
         val = float(st)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
     return round(val / 100.0, 6) if val > 1.0 else round(val, 6)
 
 
-def parse_date_text(text: Optional[str]) -> Optional[str]:
+def parse_date_text(text: str | None) -> str | None:
     txt = text or ""
     m = re.search(
         r"Fecha\s+Factura\s*[:#]?\s*(\d{1,2}/\d{1,2}/\d{4})", txt, re.IGNORECASE
@@ -164,11 +167,12 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
         try:
             mi = int(mm)
             if 1 <= mi <= 12:
-                return datetime.strptime(m.group(1), "%d/%m/%Y").date().isoformat()
-        except Exception:
-            pass
+                return datetime.strptime(m.group(1), "%d/%m/%Y").date().isoformat()  # noqa: DTZ007
+        except (ValueError, TypeError) as e:
+            logger.warning("Error al procesar la fecha de la factura: %s", e)
 
-    candidates: List[datetime] = []
+    # SI NO ENCONTRÓ LA FECHA ANTERIOR
+    candidates: list[datetime] = []
 
     # 1. Buscar formatos estándar dd/mm/yyyy o dd-mm-yyyy
     for pat, fmt in [
@@ -181,8 +185,9 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
                 mi = int(mm)
                 yi = int(yyyy)
                 if 1 <= mi <= 12 and yi >= 2018:
-                    candidates.append(datetime.strptime(m2.group(1), fmt))
-            except Exception:
+                    candidates.append(datetime.strptime(m2.group(1), fmt))  # noqa: DTZ007
+            except (ValueError, TypeError) as e:
+                logger.debug("Error analizando formato estándar de fecha: %s", e)
                 continue
 
     # --- NUEVO: Buscar formatos con mes abreviado (Ej: 24-ABR-26) ---
@@ -193,18 +198,15 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
 
         mi = MONTHS_ES.get(mes_str)
         if mi:
-            # Si el año es de 2 dígitos (ej: 26 -> 2026)
             yi = yy if yy >= 2000 else 2000 + yy
             if yi >= 2018:
                 try:
-                    candidates.append(datetime(yi, mi, dd))
-                except Exception:
-                    pass
+                    candidates.append(datetime(yi, mi, dd))  # noqa: DTZ001
+                except (ValueError, TypeError) as e:
+                    logger.debug("Error procesando fecha con mes abreviado: %s", e)
 
     if candidates:
-        best = sorted(candidates, key=lambda d: (d.year, d.month, d.day), reverse=True)[
-            0
-        ]
+        best = max(candidates, key=lambda d: (d.year, d.month, d.day))
         return best.date().isoformat()
 
     # 3. Buscar formato "dd de mes de yyyy"
@@ -217,8 +219,8 @@ def parse_date_text(text: Optional[str]) -> Optional[str]:
         year = int(m3.group(3))
         if mon and year >= 2018:
             try:
-                return datetime(year, mon, day).date().isoformat()
-            except Exception:
-                pass
+                return datetime(year, mon, day).date().isoformat()  # noqa: DTZ001
+            except (ValueError, TypeError) as e:
+                logger.debug("Error procesando fecha literal extendida: %s", e)
 
     return None

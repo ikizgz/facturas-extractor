@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# generic.py - Parser genérico para facturas de proveedores desconocidos
 
 from __future__ import annotations
 
@@ -70,17 +71,15 @@ class GenericParser(ProviderParser):
             lines = text.splitlines()
             for line in reversed(lines):
                 if lab_re.search(line):
-                    # Usamos una regex más estricta para el dinero:
-                    # Busca un número que tenga al menos una coma o punto, seguido de opcional €
+                    # Añadido -? opcional para capturar importes negativos en abonos
                     m = re.search(
-                        r"(\d+[\.,]\d{2})\s*(?:€|EUR)?", line.replace(",", ".")
+                        r"(-?\d+[\.,]\d{2})\s*(?:€|EUR)?", line.replace(",", ".")
                     )
                     if m:
-                        # Filtro de seguridad: si el número es sospechosamente pequeño
-                        # y estamos buscando un total, lo ignoramos
+                        # Filtro de seguridad modificado para aceptar valores absolutos pequeños si son negativos
                         val = norm_num(m.group(1))
-                        # Ignoramos si es None o si es un total demasiado pequeño
-                        if val is None or (role == "total" and val < 1.0):
+                        # Ignoramos si es None. Si es total, ignoramos si está entre -1.0 y 1.0 (excluyendo el cero real si lo hubiera)
+                        if val is None or (role == "total" and 0.0 < abs(val) < 1.0):
                             continue
                         return val
         return None

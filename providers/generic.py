@@ -9,7 +9,14 @@ from .base import ProviderParser
 from .common import Row, norm_num, parse_date_text
 
 LABELS = {
-    "base": [r"BASE\s+IMPONIBLE", r"IMPORTE\s+BASE", r"\bBI\b", r"NETO", r"SUBTOTAL"],
+    "base": [
+        r"BASE\s+IMPONIBLE",
+        r"IMPORTE\s+BASE",
+        r"\bBI\b",
+        r"NETO",
+        r"SUBTOTAL",
+        r"TOTAL\s+SI",
+    ],
     "iva": [r"CUOTA\s*IVA", r"IMPORTE\s*IVA", r"\bIVA\b", r"TOTAL\s*IVA"],
     "total": [r"TOTAL\s*(?:FACTURA|A\s*PAGAR|EUR|€)?\b", r"\bTOTAL\b"],
 }
@@ -22,6 +29,7 @@ class GenericParser(ProviderParser):
         return True
 
     def parse(self, text: str, path) -> list[Row]:
+        # 0. Depuración opcional
         # print(f"DEBUG: raw_text={text}")
         # 1. Dividir por páginas
         pages = re.split(r"--- PAGE \d+ ---", text)

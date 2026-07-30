@@ -209,9 +209,11 @@ def parse_date_text(text: str | None) -> str | None:
         best = max(candidates, key=lambda d: (d.year, d.month, d.day))
         return best.date().isoformat()
 
-    # 3. Buscar formato "dd de mes de yyyy"
+    # 3. Buscar formato con o sin "de" (Ej: "20 julio 2026" o "19 de julio de 2026")
     m3 = re.search(
-        r"(\d{1,2})\s+de\s+([A-Za-zÁÉÍÓÚáéíóú]+)\s+de\s+(\d{4})", txt, re.IGNORECASE
+        r"(\d{1,2})\s+(?:de\s+)?([A-Za-zÁÉÍÓÚáéíóú]+)\s+(?:de\s+)?(\d{4})",
+        txt,
+        re.IGNORECASE,
     )
     if m3:
         day = int(m3.group(1))

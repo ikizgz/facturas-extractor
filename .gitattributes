@@ -1,0 +1,13 @@
+# Forzar a que TODO se normalice a LF tanto en el repo como en el disco de trabajo (incluso en Windows)
+* text=auto eol=lf
+
+# Asegurar que los archivos batch de Windows mantengan siempre CRLF (estos sí lo necesitan)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Opcional: Asegurar que archivos específicos siempre sean LF (incluso en Windows)
+# si no lo has hecho ya para todos los archivos arriba.
+# *.sh text eol=lf
+# *.js text eol=lf
+# *.json text eol=lf
+

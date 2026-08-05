@@ -41,8 +41,11 @@ def test_extraccion_pdf_real_amazon():
     # 4. Validamos que se hayan extraído campos obligatorios correctamente (que no estén vacíos o por defecto)
     assert datos["numero_factura"] != "DESCONOCIDO"
     assert datos["nif_cif"] != "DESCONOCIDO"
+    assert isinstance(datos["importe_base"], float)
+    assert isinstance(datos["tasa_iva"], float)
+    assert isinstance(datos["importe_iva"], float)
     assert isinstance(datos["importe_total"], float)
-
+    # Imprimimos los datos extraídos para inspección visual durante la prueba
     print("\n--- DATOS EXTRAÍDOS DEL PDF REAL ---")
     for k, v in datos.items():
         print(f"{k}: {v}")

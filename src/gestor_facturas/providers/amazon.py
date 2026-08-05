@@ -25,8 +25,21 @@ class AmazonParser(ProveedorBase):
     def extraer_datos(self, raw_text: str, pdf_path: str | Path) -> dict:
         """Extrae los campos normalizados de una factura o nota de crédito de Amazon."""
 
+        # 0. Detección y trazabilidad de notas de crédito / abonos
+        es_nota_credito = "nota de crédito" in raw_text.lower()
+        factura_original_match = re.search(
+            r"factura\s+(?:original\s+)?([A-Z0-9]+)", raw_text, re.IGNORECASE
+        )
+
+        notas = ""
+        if es_nota_credito:
+            num_orig = factura_original_match.group(1) if factura_original_match else ""
+            if num_orig:
+                notas = f"Nota de Crédito - Factura original: {num_orig}"
+            else:
+                notas = "Nota de Crédito"
+
         # 1. Número de Factura / Nota de Crédito
-        # Buscamos primero si es una nota de crédito, si no, buscamos factura estándar
         num_match = re.search(
             r"Número de la nota de crédito\s*([A-Z0-9]+)", raw_text, re.IGNORECASE
         )
@@ -53,16 +66,13 @@ class AmazonParser(ProveedorBase):
         fecha = _parsear_fecha(fecha_match.group(1)) if fecha_match else ""
 
         # 3. Proveedor y NIF / CIF del emisor
-        # Intentamos extraer el vendedor real tras "Vendido por"
         proveedor = "Amazon"
         vendedor_match = re.search(r"Vendido por\s*([^\n\r]+)", raw_text, re.IGNORECASE)
         if vendedor_match:
-            # Limpiamos posibles espacios o saltos de línea sobrantes
             vendedor_candidato = vendedor_match.group(1).strip()
             if vendedor_candidato:
                 proveedor = vendedor_candidato
 
-        # Buscamos patrones de NIF/IVA de proveedor habituales
         nif_match = re.search(
             r"(?:IVA|NIF|CIF)[:\s]*([A-Z]{2}[A-Z0-9]{8,12})", raw_text, re.IGNORECASE
         )
@@ -74,7 +84,6 @@ class AmazonParser(ProveedorBase):
         importe_iva = 0.0
         importe_total = 0.0
 
-        # Búsqueda de la línea de desglose de IVA (ej: "0% -8,39 € 0,00 €" o "21.0% 4,95 € 1,04 €")
         tabla_iva_match = re.search(
             r"(\d{1,2}(?:[.,]\d{1,2})?)\s*%\s*(-?\d+[.,]\d{2})\s*€?\s*(-?\d+[.,]\d{2})\s*€?",
             raw_text,
@@ -87,7 +96,6 @@ class AmazonParser(ProveedorBase):
             importe_base = _normalizar_numero(tabla_iva_match.group(2))
             importe_iva = _normalizar_numero(tabla_iva_match.group(3))
 
-        # Buscar importe total (o total pendiente / reembolso en notas de crédito)
         tot_match = re.search(
             r"Total pendiente\s*(-?\d+[.,]\d{2})\s*€", raw_text, re.IGNORECASE
         )
@@ -124,7 +132,7 @@ class AmazonParser(ProveedorBase):
         ):
             importe_iva = round(importe_total - importe_base, 2)
 
-        # 5. Estructura exacta requerida para el Excel unificado
+        # 5. Estructura exacta requerida para el Excel unificado (incluyendo notas)
         return {
             "fecha": fecha,
             "numero_factura": numero_factura,
@@ -134,4 +142,5 @@ class AmazonParser(ProveedorBase):
             "tasa_iva": tasa_iva,
             "importe_iva": importe_iva,
             "importe_total": importe_total,
+            "notas": notas,
         }

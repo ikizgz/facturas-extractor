@@ -44,7 +44,7 @@ def test_extraer_datos_amazon_ejemplo():
     assert datos["tasa_iva"] == 21.0
     assert datos["importe_iva"] == 1.04
     assert datos["importe_total"] == 5.99
-
+    # imprimimos los datos extraídos para inspección visual
     print("\n--- DATOS EXTRAÍDOS ---")
     for k, v in datos.items():
         print(f"{k}: {v}")
@@ -77,7 +77,9 @@ def test_extraer_datos_amazon_nota_credito():
     assert datos["tasa_iva"] == 0.0
     assert datos["importe_iva"] == 0.0
     assert datos["importe_total"] == -8.39
-
+    # Comprobamos que las notas recogen correctamente la factura original
+    assert "DE600069RIYTPI" in datos["notas"]
+    # imprimimos los datos extraídos para inspección visual
     print("\n--- DATOS EXTRAÍDOS ---")
     for k, v in datos.items():
         print(f"{k}: {v}")
